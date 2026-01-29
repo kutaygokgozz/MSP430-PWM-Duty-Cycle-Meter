@@ -1,31 +1,37 @@
-# MSP430 PWM Duty Cycle Meter
+# Ultrasonic Radar / Sonar System (Custom PCB)
 
 ## Overview
-This project utilizes the **MSP430G2553** microcontroller to measure the **Duty Cycle (%)** of an incoming PWM signal using the **Timer A Input Capture** module. The calculated value is transmitted to a PC via UART for monitoring (e.g., Serial Plotter).
+This project is a **2D Object Localization System (Radar)** developed on a custom home-etched PCB. It utilizes an **TI MSP430G2553** microcontroller to control a servo motor for scanning and an **HC-SR04** ultrasonic sensor for distance measurement.
 
-## Features
-* **Input Capture:** Uses `Timer0_A` to detect rising and falling edges with precision.
-* **Low-Level Implementation:** Written in bare-metal C using direct register access (`TACTL`, `TACCTL1`, `TA0IV`).
-* **Real-time Monitoring:** Sends floating-point duty cycle values over UART.
-* **Watchdog:** Disabled for continuous operation.
+The firmware implements high-precision **Input Capture (Timer A)** to measure the echo pulse width from the sensor, calculating the distance to obstacles in real-time.
 
-## Hardware Pinout
+## Key Features
+* **Custom Hardware:** Designed and fabricated a **double-layer (2-layer)** home-made PCB using the toner transfer method.
+* **Sensor Fusion:** Integrates servo positioning with ultrasonic ranging to create a sector map.
+* **Signal Processing:** Uses bare-metal `Timer_A` interrupts for precise pulse-width measurement (Echo signal) without blocking the CPU.
+* **Data Output:** Transmits angle and distance data via UART for visualization (e.g., Radar Plotter).
+
+## Hardware Components
+| Component | Function |
+| :--- | :--- |
+| **MCU** | TI MSP430G2553 (DIP-20) |
+| **Sensor** | HC-SR04 Ultrasonic Ranging Module |
+| **Actuator** | Micro Servo (SG90 or MG90S) |
+| **PCB** | **Double-Layer (2-Layer)** Custom Prototype |
+
+## Pin Configuration
 | Pin | Function | Description |
 | :--- | :--- | :--- |
-| **P1.1** | **PWM Input** | Connect the signal source here (Timer A Capture Input `CCI1A`). |
-| **P1.2** | **UART TX** | Connect to RX pin of USB-TTL converter (sends data to PC). |
-| **GND** | **Ground** | Common ground with the signal source. |
+| **P1.1** | **Echo Input** | Connected to HC-SR04 Echo (Timer A Capture `CCI1A`) |
+| **P1.2** | **UART TX** | Sends data to PC (9600 Baud) |
+| **[GPIO]** | **Trig Output** | Connected to HC-SR04 Trig Pin |
+| **[PWM]** | **Servo Control** | Connected to Servo Signal Pin |
 
-## Configuration
-* **Clock:** 1 MHz (Calibrated DCO).
-* **UART Baud Rate:** 9600 bps.
-* **Timer Mode:** Continuous Mode (counting up to 0xFFFF).
-* **Capture Mode:** Both Edges (Rising & Falling).
+## How It Works
+1.  **Triggering:** The MCU generates a 10µs pulse to trigger the HC-SR04.
+2.  **Echo Capture:** The sensor returns a pulse proportional to the distance. The MSP430 captures the **Rising** and **Falling** edges using hardware interrupts to calculate the "Time of Flight" precisely.
+3.  **Calculation:** `Distance (cm) = (PulseTime / 2) / 29.1`
+4.  **Scanning:** The servo sweeps the area (e.g., 0° to 180°), and data is sent as pairs `(Angle, Distance)` to the interface.
 
-## How it Works
-1.  The Timer is configured to trigger an interrupt on **both edges** of the signal at P1.1.
-2.  **ISR (Interrupt Service Routine)** captures the timer counter value:
-    * Edge 1: Starts measurement.
-    * Edge 2: Calculates pulse width (On-time).
-    * Edge 3: Calculates total period.
-3.  The main loop computes the percentage `(OnTime / Period) * 100` and transmits it via UART if a valid reading is available.
+## Fabrication Note
+This project was designed and fabricated in-house as a rapid prototyping study to demonstrate **double-layer PCB fabrication techniques** and hardware-level signal processing algorithms.
