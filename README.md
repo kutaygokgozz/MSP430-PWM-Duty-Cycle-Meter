@@ -1,15 +1,15 @@
-# Ultrasonic Radar / Sonar System (Custom PCB)
+# Ultrasonic Radar / Object Detector System (Custom PCB)
 
 ## Overview
-This project is a **2D Object Localization System (Radar)** developed on a custom home-etched PCB. It utilizes an **TI MSP430G2553** microcontroller to control a servo motor for scanning and an **HC-SR04** ultrasonic sensor for distance measurement.
+This project is a **2D Object Localization & Detection System** developed on a custom home-etched PCB. It utilizes a **TI MSP430G2553** microcontroller to control a servo motor for step-by-step scanning and an **HC-SR04** ultrasonic sensor for distance measurement.
 
-The firmware implements high-precision **Input Capture (Timer A)** to measure the echo pulse width from the sensor, calculating the distance to obstacles in real-time.
+Unlike standard radars that stream raw data, this firmware acts as a **Smart Obstacle Detector**, filtering out background noise and specifically alerting only when objects are detected within a **50 cm safety radius**.
 
 ## Key Features
 * **Custom Hardware:** Designed and fabricated a **double-layer (2-layer)** home-made PCB using the toner transfer method.
-* **Sensor Fusion:** Integrates servo positioning with ultrasonic ranging to create a sector map.
-* **Signal Processing:** Uses bare-metal `Timer_A` interrupts for precise pulse-width measurement (Echo signal) without blocking the CPU.
-* **Data Output:** Transmits angle and distance data via UART for visualization (e.g., Radar Plotter).
+* **Step-by-Step Scanning:** Implements a stable 500ms delay between servo steps to eliminate mechanical jitter and ensure sensor settling.
+* **Smart Filtering:** The system ignores distant objects and triggers a UART alert only for obstacles closer than **50 cm**.
+* **Jitter-Free Logic:** Uses a hybrid timing approach (Timer Interrupts for Servo pacing + Precision Polling for Echo) to prevent hardware timer conflicts.
 
 ## Hardware Components
 | Component | Function |
@@ -22,16 +22,18 @@ The firmware implements high-precision **Input Capture (Timer A)** to measure th
 ## Pin Configuration
 | Pin | Function | Description |
 | :--- | :--- | :--- |
-| **P1.1** | **Echo Input** | Connected to HC-SR04 Echo (Timer A Capture `CCI1A`) |
-| **P1.2** | **UART TX** | Sends data to PC (9600 Baud) |
-| **[GPIO]** | **Trig Output** | Connected to HC-SR04 Trig Pin |
-| **[PWM]** | **Servo Control** | Connected to Servo Signal Pin |
+| **P1.0** | **Trig Output** | Generates 10µs trigger pulse for HC-SR04. |
+| **P1.1** | **Echo Input** | Reads the pulse width from the sensor. |
+| **P1.2** | **UART TX** | Transmits alert data to PC (9600 Baud). |
+| **P1.6** | **Servo PWM** | Controls servo angle (Timer0_A1 Output). |
 
 ## How It Works
-1.  **Triggering:** The MCU generates a 10µs pulse to trigger the HC-SR04.
-2.  **Echo Capture:** The sensor returns a pulse proportional to the distance. The MSP430 captures the **Rising** and **Falling** edges using hardware interrupts to calculate the "Time of Flight" precisely.
-3.  **Calculation:** `Distance (cm) = (PulseTime / 2) / 29.1`
-4.  **Scanning:** The servo sweeps the area (e.g., 0° to 180°), and data is sent as pairs `(Angle, Distance)` to the interface.
+1.  **Positioning:** The MCU moves the servo to a specific angle (0° to 180° range with 10° steps).
+2.  **Stabilization:** The system waits for **500ms** to allow the servo to reach the position and stop vibrating.
+3.  **Measurement:** A trigger pulse is sent. The firmware measures the "Time of Flight" of the Echo signal using a calibrated polling loop to avoid interrupting the Servo's PWM signal.
+4.  **Detection & Alert:**
+    * If `Distance < 50 cm`: The system sends an **ALERT** string via UART (e.g., `ALERT: Angle 40 deg -> Distance 12 cm`).
+    * If `Distance > 50 cm`: The system ignores the reading to reduce data noise.
 
 ## Fabrication Note
-This project was designed and fabricated in-house as a rapid prototyping study to demonstrate **double-layer PCB fabrication techniques** and hardware-level signal processing algorithms.
+This project was designed and fabricated in-house as a rapid prototyping study to demonstrate **double-layer PCB fabrication techniques** and embedded system integration without external libraries.
